@@ -24,6 +24,7 @@ class HeuristicSolver(Solver):
         self._engine = None
         self._fallback = GreedySolver()
         self.time_budget_override = time_budget_override
+        self._warned = False   # warn once per process about a missing engine
 
     def _load(self):
         if self._engine is None:
@@ -31,14 +32,30 @@ class HeuristicSolver(Solver):
             self._engine = importlib.import_module("solver")
         return self._engine
 
+    def _warn_degraded(self, exc: Exception) -> None:
+        """Make a missing-engine fallback *loud*: if solver.py is not packaged,
+        the heuristic silently behaving like greedy would quietly cost score on
+        the judge. Emit a one-time stderr warning so it is visible."""
+        if self._warned:
+            return
+        self._warned = True
+        import sys
+        sys.stderr.write(
+            "[autosolver] WARNING: heuristic engine 'solver.py' could not be "
+            "imported (%s); falling back to GREEDY. Solution quality is "
+            "DEGRADED -- ship solver.py on the import path to restore it.\n"
+            % exc)
+
     def solve(self, problem: Problem, time_budget: float,
               incumbent: Optional[Solution] = None) -> Solution:
         t0 = time.time()
         try:
             engine = self._load()
-        except Exception:
+        except Exception as exc:
+            self._warn_degraded(exc)
             sol = self._fallback.solve(problem, time_budget, incumbent)
             sol.strategy = self.name
+            sol.degraded = True
             sol.solve_time = time.time() - t0
             return sol
         # rebuild the raw input text the engine expects

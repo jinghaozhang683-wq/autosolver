@@ -139,6 +139,8 @@ class AutoSolverAgent:
         self.on_event = on_event      # optional callback(dict) for live streaming
         self.log: List[LogEntry] = []
         self.profile: dict = {}
+        # blended max_backup pushed by LongCat suggested_params (offline path)
+        self._colgen_backup_override = None
 
     # ---------------------------------------------------------------- public
     def solve(self, problem: Problem, total_budget: float = 10.0) -> Solution:
@@ -203,6 +205,7 @@ class AutoSolverAgent:
                                last_move, last_gain)
 
         step = 0
+        best_bound = float("nan")   # tightest LP-relaxation estimate seen
         while time.time() - t0 < total_budget - 0.4:
             avail = [m for m in moves if not m.exhausted
                      and (total_budget - (time.time() - t0)) >= m.min_budget]
@@ -223,6 +226,9 @@ class AutoSolverAgent:
             dt = max(1e-3, time.time() - ts)
             m.total_time += dt
             m.tries += 1
+            sb = getattr(sol, "bound", float("nan"))
+            if sb == sb and (best_bound != best_bound or sb > best_bound):
+                best_bound = sb
 
             old = incumbent.score if (incumbent and incumbent.feasible) else None
             improved = sol.better_than(incumbent)
@@ -278,12 +284,22 @@ class AutoSolverAgent:
             incumbent_move = "greedy"
 
         self._learn(key, contributions, contribution_times, incumbent_move)
-        self._say("done", "best=%.4f assigned=%d/%d by '%s'  (%.2fs, %d steps)" % (
+        # Optimality-gap readout against the (heuristic) LP-relaxation estimate.
+        lp_bound = None
+        gap_txt = ""
+        if (best_bound == best_bound and incumbent.feasible
+                and incumbent.score > best_bound + EPS):
+            lp_bound = round(best_bound, 4)
+            gap = incumbent.score - best_bound
+            gap_pct = 100.0 * gap / abs(incumbent.score) if incumbent.score else 0.0
+            gap_txt = "  lp_gap≈%.4f (%.1f%%)" % (gap, gap_pct)
+        self._say("done", "best=%.4f assigned=%d/%d by '%s'  (%.2fs, %d steps)%s" % (
             incumbent.score, incumbent.assigned_count, problem.task_count,
-            incumbent.strategy, time.time() - t0, step),
+            incumbent.strategy, time.time() - t0, step, gap_txt),
             event="done", best=round(incumbent.score, 4),
             assigned=incumbent.assigned_count, total_tasks=problem.task_count,
             winner=incumbent_move, seconds=round(time.time() - t0, 2), steps=step,
+            lp_bound=lp_bound, degraded=getattr(incumbent, "degraded", False),
             groups=incumbent.to_output())
         return incumbent
 
@@ -405,17 +421,90 @@ class AutoSolverAgent:
         advice = self.llm_advisor.advise(
             self.profile, state, history, [m.name for m in moves],
             timeout=min(6.0, max(3.0, total_budget * 0.15)))
-        bias = advice.get("action_bias") if isinstance(advice, dict) else None
-        if not isinstance(bias, dict):
+        if not isinstance(advice, dict):
             return
-        for m in moves:
+        bias = advice.get("action_bias")
+        if isinstance(bias, dict):
+            for m in moves:
+                try:
+                    m.llm_bias = float(bias.get(m.name, 0.0))
+                except Exception:
+                    m.llm_bias = 0.0
+            self._say("advisor", "LongCat action bias: " + ", ".join(
+                "%s=%+.2f" % (m.name, m.llm_bias)
+                for m in moves if abs(m.llm_bias) > 1e-9))
+        sp = advice.get("suggested_params")
+        if isinstance(sp, dict):
+            self._apply_suggested_params(problem, sp, advice)
+
+    def _apply_suggested_params(self, problem: Problem, sp: dict,
+                                advice: Optional[dict] = None) -> None:
+        """Blend LongCat's suggested solver params into the exact / colgen
+        solvers: ``final = (1-a)*default + a*suggested`` with a small ``a``.
+
+        Only reachable on the generous-budget path (the advisor itself is gated
+        to ``total_budget >= 20s``), so it never perturbs the 10s/case path. The
+        blend weight is small and every value is clamped, so a wild suggestion
+        can only nudge — never blow up — the column pool.
+        """
+        alpha = 0.25
+
+        def blend(default, key, lo, hi):
+            v = sp.get(key)
+            if v is None:
+                return default, False
             try:
-                m.llm_bias = float(bias.get(m.name, 0.0))
+                v = float(v)
             except Exception:
-                m.llm_bias = 0.0
-        self._say("advisor", "LongCat action bias: " + ", ".join(
-            "%s=%+.2f" % (m.name, m.llm_bias)
-            for m in moves if abs(m.llm_bias) > 1e-9))
+                return default, False
+            merged = int(round((1 - alpha) * default + alpha * v))
+            merged = max(lo, min(hi, merged))
+            return merged, (merged != default)
+
+        new_subset, c1 = blend(getattr(self.exact, "subset_pool", 13),
+                               "subset_pool", 1, 40)
+        new_backup, c2 = blend(getattr(self.exact, "max_backup", 4),
+                               "max_backup", 1, 8)
+        new_price, c3 = blend(getattr(self.colgen, "price_pool", 24),
+                              "price_pool", 4, 200)
+
+        if hasattr(self.exact, "subset_pool"):
+            self.exact.subset_pool = new_subset
+        if hasattr(self.exact, "max_backup"):
+            self.exact.max_backup = new_backup
+        self.colgen.price_pool = new_price
+        self.colgen.max_backup = new_backup
+        self._colgen_backup_override = new_backup
+
+        changed = []
+        if c1:
+            changed.append("subset_pool=%d" % new_subset)
+        if c2:
+            changed.append("max_backup=%d" % new_backup)
+        if c3:
+            changed.append("price_pool=%d" % new_price)
+        if not changed:
+            return
+        # rebuild the shared exact column pool so MILP picks up the new params
+        try:
+            self._share_columns(problem)
+        except Exception:
+            pass
+        self._say("advisor", "applied LongCat suggested_params (alpha=%.2f): %s"
+                  % (alpha, ", ".join(changed)))
+        try:
+            self.learning_logger.write({
+                "event_type": "llm_advice",
+                "profile_key": self.profile.get("key", ""),
+                "suggested_params": sp,
+                "applied_params": {"subset_pool": new_subset,
+                                   "max_backup": new_backup,
+                                   "price_pool": new_price},
+                "diagnosis": (advice or {}).get("diagnosis"),
+                "risk": (advice or {}).get("risk"),
+            })
+        except Exception:
+            pass
 
     def _slice(self, m: Move, remaining: float, total: float) -> float:
         if m.name == "greedy_fast":
@@ -457,6 +546,8 @@ class AutoSolverAgent:
             m.exhausted = True
 
     def _move_note(self, m: Move, sol: Solution) -> str:
+        if getattr(sol, "degraded", False):
+            return "[DEGRADED: solver.py missing -> greedy fallback]"
         if getattr(sol, "optimal", False):
             return "[proved global optimal]"
         if getattr(sol, "restricted_optimal", False):
@@ -495,11 +586,12 @@ class AutoSolverAgent:
     def _colgen_variant(self, problem: Problem, budget: float,
                         incumbent: Optional[Solution],
                         price_pool: int, max_backup: int) -> Solution:
-        solver = ColGenSolver(max_backup=max_backup, price_pool=price_pool)
+        mb = self._colgen_backup_override or max_backup
+        solver = ColGenSolver(max_backup=mb, price_pool=price_pool)
         solver.column_scorer = self.column_scorer
         solver.backup_scorer = self.backup_scorer
         sol = solver.solve(problem, budget, incumbent)
-        sol.strategy = "colgen_price%d_backup%d" % (price_pool, max_backup)
+        sol.strategy = "colgen_price%d_backup%d" % (price_pool, mb)
         return sol
 
     # -- ruin & recreate (gives the agent an 'iterate' direction) ----------

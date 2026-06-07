@@ -97,6 +97,7 @@ class ColGenSolver(Solver):
             return A, tasks, cours
 
         lp_deadline = t0 + time_budget * 0.6
+        last_lp_fun = None      # objective of the last solved LP relaxation
         # ---- column generation loop -------------------------------------
         for _ in range(self.max_iters):
             if time.time() > lp_deadline:
@@ -108,6 +109,7 @@ class ColGenSolver(Solver):
                           bounds=(0, 1), method="highs")
             if res.x is None:
                 break
+            last_lp_fun = res.fun
             y = res.ineqlin.marginals
             nt = len(tasks)
             ytask = {t: y[i] for i, t in enumerate(tasks)}
@@ -172,6 +174,15 @@ class ColGenSolver(Solver):
         sol.restricted_optimal = (getattr(res, "status", 1) == 0)
         sol.optimal = False
         sol.optimal_scope = "restricted" if sol.restricted_optimal else "none"
+        # LP-relaxation reference value over the generated columns:
+        #   score = C_max - total_saving, and the LP maximises saving, so
+        #   C_max + lp_fun (= C_max - saving_LP) is a lower-bound *estimate*
+        #   on the score. Because the pricing subproblem is solved greedily
+        #   (capped by price_pool / max_backup), this is NOT a certified global
+        #   bound — it is exposed only for gap reporting and never sets
+        #   optimal_scope.
+        if last_lp_fun is not None:
+            sol.bound = UNASSIGNED_PENALTY * problem.task_count + float(last_lp_fun)
         return sol
 
     def _learned_price_bias(self, problem: Problem, task_key: str, member) -> float:

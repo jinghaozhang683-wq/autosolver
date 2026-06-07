@@ -17,7 +17,7 @@ class Solution:
 
     __slots__ = ("groups", "score", "assigned_count", "feasible", "strategy",
                  "solve_time", "optimal", "restricted_optimal",
-                 "optimal_scope", "bound")
+                 "optimal_scope", "bound", "degraded")
 
     def __init__(self, groups: List[Tuple[str, List[str]]],
                  strategy: str = ""):
@@ -34,6 +34,9 @@ class Solution:
         self.restricted_optimal: bool = False
         self.optimal_scope: str = "none"
         self.bound: float = float("nan")
+        # True when a solver silently fell back to a weaker engine (e.g. the
+        # heuristic's solver.py is missing and it degraded to greedy).
+        self.degraded: bool = False
 
     def evaluate(self, problem: Problem) -> "Solution":
         """Compute objective score + feasibility against the problem.
