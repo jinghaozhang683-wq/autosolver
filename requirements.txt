@@ -1,0 +1,9 @@
+# Deployment requirements (Render / Railway / Fly.io).
+# Lean set that fits a free-tier container (512MB RAM): the default agent uses
+# the scipy/HiGHS exact solver + column generation, which need only these.
+flask>=3.0
+scipy>=1.9
+numpy>=1.23
+# Optional extras (omit on small free tiers):
+#   ortools>=9.0      # enables the --cpsat exact engine
+#   anthropic         # only if you swap the LLM strategy to the Anthropic SDK

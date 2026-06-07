@@ -1,0 +1,49 @@
+# caches / runtime
+__pycache__/
+*.pyc
+*.tmp
+.DS_Store
+.claude/
+autosolver_memory.json
+autosolver/web/web_memory.json
+
+# learned model files (trained per-installation, not source)
+autosolver_policy.json
+autosolver_column_model.json
+autosolver_backup_model.json
+autosolver_operator_model.json
+autosolver_learning.jsonl
+
+# PRIVATE competition data — never publish
+datasets/judge_results/
+datasets/code_backup/
+
+# old / scratch files not needed by the app
+solver_slim.py
+solver_slim2.py
+solver_slim_min.py
+solver_ensemble.py
+test_enum.py
+test_large301.py
+test_real301.py
+_test_backup.py
+sys_test.py
+submit_judge.py
+judge.py
+local_bench.py
+gen_synthetic.py
+diag.txt
+diag2.txt
+lb.json
+lb_latest.json
+leaderboard_detail.json
+token.txt
+example_solution(1).txt
+large_seed301(1).txt
+solver_slim2(1).py
+改后713脚本.py
+solver_baseline.py
+赛题要求.txt
+*.zip
+*.zip
+*.pdf

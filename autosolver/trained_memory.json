@@ -1,0 +1,174 @@
+{
+ "tiny/sparse/highwill": {
+  "greedy": {
+   "tries": 2,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  },
+  "exact": {
+   "tries": 2,
+   "wins": 2,
+   "improve_rate": 0.254867582163304,
+   "avg_time": 0.0
+  }
+ },
+ "small/sparse/highwill": {
+  "greedy": {
+   "tries": 2,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  },
+  "exact": {
+   "tries": 2,
+   "wins": 2,
+   "improve_rate": 0.13968465366025498,
+   "avg_time": 0.0
+  }
+ },
+ "medium/sparse/highwill": {
+  "greedy": {
+   "tries": 4,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  },
+  "exact": {
+   "tries": 4,
+   "wins": 4,
+   "improve_rate": 0.23484714547061247,
+   "avg_time": 0.0
+  }
+ },
+ "large/mid/highwill": {
+  "greedy": {
+   "tries": 2,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  },
+  "colgen": {
+   "tries": 1,
+   "wins": 1,
+   "improve_rate": 0.2489743284920603,
+   "avg_time": 0.0
+  },
+  "heuristic": {
+   "tries": 1,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  },
+  "perturb": {
+   "tries": 1,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  },
+  "exact": {
+   "tries": 1,
+   "wins": 1,
+   "improve_rate": 0.30882703619283963,
+   "avg_time": 0.0
+  }
+ },
+ "small/sparse/lowwill": {
+  "greedy": {
+   "tries": 1,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  },
+  "colgen": {
+   "tries": 1,
+   "wins": 1,
+   "improve_rate": 0.11189096978790476,
+   "avg_time": 0.0
+  },
+  "heuristic": {
+   "tries": 1,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  },
+  "perturb": {
+   "tries": 1,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  },
+  "lp": {
+   "tries": 1,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  }
+ },
+ "medium/mid/midwill": {
+  "greedy": {
+   "tries": 1,
+   "wins": 1,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  },
+  "exact": {
+   "tries": 1,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  },
+  "heuristic": {
+   "tries": 1,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  }
+ },
+ "large/dense/highwill": {
+  "greedy": {
+   "tries": 2,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  },
+  "colgen": {
+   "tries": 2,
+   "wins": 2,
+   "improve_rate": 0.12426205499902154,
+   "avg_time": 0.0
+  },
+  "heuristic": {
+   "tries": 2,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  },
+  "perturb": {
+   "tries": 2,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  }
+ },
+ "xlarge/dense/midwill": {
+  "greedy": {
+   "tries": 3,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  },
+  "heuristic": {
+   "tries": 3,
+   "wins": 3,
+   "improve_rate": 0.2513793158603951,
+   "avg_time": 0.0
+  },
+  "perturb": {
+   "tries": 3,
+   "wins": 0,
+   "improve_rate": 0.0,
+   "avg_time": 0.0
+  }
+ }
+}

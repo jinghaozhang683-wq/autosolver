@@ -1,0 +1,10 @@
+# Exact MILP / LP strategies (HiGHS bundled with scipy)
+scipy>=1.9
+numpy
+# Exact CP-SAT engine (optional, --cpsat)
+ortools>=9.0
+# LLM direct-reasoning strategy (optional, --llm; needs ANTHROPIC_API_KEY)
+anthropic>=0.40
+
+# Web UI (visual demo)
+flask>=3.0
